@@ -3,7 +3,7 @@
 > **Early-stage research proposal** — we are actively seeking expert feedback.
 > Project page: https://aarushkandukoori.github.io/exact-gaussian-oracles-langevin-discretization/
 
-A noise-free Gaussian testbed for checking how Langevin discretization bias scales with step size and dimension.
+Exact Gaussian moment recursions for checking how ULA and randomized midpoint bias scale with step size, dimension and spectrum.
 
 **Authors:** Aarush Kandukoori (Carnegie Mellon University, Lead Student Author) ·
 Aditya Kandukoori (Poolesville High School, Co-Author)

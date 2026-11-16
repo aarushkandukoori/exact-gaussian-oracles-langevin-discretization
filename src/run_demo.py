@@ -1,8 +1,9 @@
 '''End-to-end demo on SYNTHETIC data. Reference implementation of a PROPOSAL.
 
-Compares the exact ULA stationary variance with a Monte Carlo estimate on a
-synthetic Gaussian target. Prints measured values for this run only; they are
-not benchmarks and carry no claim about the literature.
+For a synthetic Gaussian target it prints the exact stationary quantities of ULA
+and of the overdamped randomized midpoint method (RMP), plus a small Monte Carlo
+cross-check of the RMP variance. Values are for this run only; they are not
+benchmarks and carry no claim about the literature.
 
 Run from the repo root: python -m src.run_demo
 '''
@@ -32,25 +33,28 @@ def load_precisions(name: str = 'geometric') -> np.ndarray:
 def main() -> None:
     lams = load_precisions()
     d, L = len(lams), lams.max()
-    sigma2 = 1.0 / lams
     rng = np.random.default_rng(0)
-    hs = [h for h in (0.02, 0.05, 0.1, 0.2) if h < 2.0 / L]
-    print(f'SYNTHETIC Gaussian target, d={d}, L={L:.3g}')
-    print('h, exact_W2, leading_order_W2, cov_rel_err_exact, mean_rel_dev_sim_vs_exact')
-    w2s = []
+    hs = [h for h in (0.01, 0.02, 0.05, 0.08) if h * L < 1.0]
+    print(f'SYNTHETIC Gaussian target, d={d}, L={L:.3g}, kappa={L / lams.min():.3g}')
+    print('h, ULA_W2_exact, RMP_W2_lower_bound, RMP_KL_cov_part, RMP_KL_mix_2nd_order, '
+          'RMP_var_mean_rel_dev_sim_vs_exact')
+    ula_w2, rmp_w2 = [], []
     for h in hs:
-        v = eg.ula_stationary_variance(lams, h)
-        w2 = np.sqrt(eg.ula_w2_squared(lams, h))
-        w2s.append(w2)
+        w2_ula = np.sqrt(eg.ula_w2_squared(lams, h))
+        w2_rmp = eg.rmp_w2_gelbrich_lower_bound(lams, h)
+        ula_w2.append(w2_ula)
+        rmp_w2.append(w2_rmp)
+        v = eg.rmp_stationary_variance(lams, h)
         grad = lambda x: lams * x
-        step = lambda x: samplers.ula_step(x, h, grad, rng)
-        x0 = rng.standard_normal((500, d)) * np.sqrt(sigma2)
+        step = lambda x: samplers.rmp_step(x, h, grad, rng)
+        x0 = rng.standard_normal((500, d)) / np.sqrt(lams)
         sim = samplers.run_chains(step, x0, n_steps=400, n_burn=200)
         dev = float(np.mean(np.abs(sim / v - 1.0)))
-        print(f'{h}, {w2:.4g}, {np.sqrt(eg.w2_leading_order(lams, h)):.4g}, '
-              f'{eg.covariance_error(v, sigma2):.4g}, {dev:.3g}')
+        print(f'{h}, {w2_ula:.4g}, {w2_rmp:.4g}, {eg.rmp_kl_covariance_part(lams, h):.4g}, '
+              f'{eg.rmp_kl_mixture_second_order(lams, h):.4g}, {dev:.3g}')
     out = SPEC_PATH.parent / 'bias_vs_step.png'
-    if SPEC_PATH.parent.exists() and report.plot_bias_vs_step(hs, {'ULA exact (SYNTHETIC)': w2s}, str(out)):
+    curves = {'ULA exact W2 (SYNTHETIC)': ula_w2, 'RMP covariance-part W2 lower bound (SYNTHETIC)': rmp_w2}
+    if SPEC_PATH.parent.exists() and report.plot_bias_vs_step(hs, curves, str(out)):
         print(f'wrote {out}')
 
 
